@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generador de PDF</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f4f6fa;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px 60px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 4px 32px rgba(26,39,68,.10);
+      padding: 40px 44px;
+      width: 100%;
+      max-width: 740px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+
+    .header-icon {
+      width: 50px; height: 50px;
+      background: #eef2ff;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .header-icon svg { width: 24px; height: 24px; stroke: #4a7cf7; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .header-text h1 { font-size: 20px; font-weight: 700; color: #1a2744; }
+    .header-text p  { font-size: 13px; color: #64748b; margin-top: 2px; }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1a2744;
+      margin-bottom: 8px;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 5px;
+    }
+
+    .field { margin-bottom: 24px; }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .stats { font-size: 11px; color: #94a3b8; }
+
+    input[type="text"] {
+      width: 100%;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 13px 16px;
+      font-size: 15px;
+      color: #1a2744;
+      background: #f8fafc;
+      outline: none;
+      transition: border-color .18s;
+    }
+    input[type="text"]:focus { border-color: #4a7cf7; background: #fff; }
+
+    textarea {
+      width: 100%;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 14px;
+      color: #1a2744;
+      background: #f8fafc;
+      resize: vertical;
+      min-height: 280px;
+      line-height: 1.7;
+      outline: none;
+      font-family: inherit;
+      transition: border-color .18s;
+    }
+    textarea:focus { border-color: #4a7cf7; background: #fff; }
+
+    .info-card {
+      display: flex;
+      gap: 10px;
+      background: #eef2ff;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 28px;
+      align-items: flex-start;
+    }
+    .info-card svg { width: 15px; height: 15px; stroke: #4a7cf7; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; margin-top: 1px; }
+    .info-card span { font-size: 12px; color: #4a7cf7; line-height: 1.6; }
+
+    .btn {
+      width: 100%;
+      background: #4a7cf7;
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      box-shadow: 0 4px 18px rgba(74,124,247,.30);
+      transition: opacity .18s, transform .12s;
+    }
+    .btn:hover  { opacity: .92; }
+    .btn:active { transform: scale(.98); }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .btn svg { width: 20px; height: 20px; stroke: #fff; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .toast {
+      position: fixed;
+      bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1a2744;
+      color: #fff;
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity .28s, transform .28s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .footer {
+      text-align: center;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .footer a {
+      color: #4a7cf7;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .footer a:hover { text-decoration: underline; }
+
+    /* ── PRINT / PDF STYLES ── */
+    @media print {
+      body  { background: #fff; padding: 0; }
+      .card { box-shadow: none; border-radius: 0; padding: 0; max-width: 100%; }
+      .editor-area { display: none !important; }
+      .preview-area { display: block !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="header">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    </div>
+    <div class="header-text">
+      <h1>Generador de PDF</h1>
+      <p>Convierte tu texto en PDF al instante</p>
+    </div>
+  </div>
+
+  <div class="editor-area">
+    <div class="field">
+      <label for="project-name">Nombre del proyecto</label>
+      <input
+        type="text"
+        id="project-name"
+        placeholder="Ej: Informe de ventas Q1 2025"
+        maxlength="120"
+      />
+      <p class="hint">Este nombre se usará como título del PDF</p>
+    </div>
+
+    <div class="field">
+      <div class="label-row">
+        <label for="content" style="margin-bottom:0">Contenido del documento</label>
+        <span class="stats" id="stats">0 palabras · 0 caracteres</span>
+      </div>
+      <textarea
+        id="content"
+        placeholder="Pega o escribe aquí el texto que deseas convertir en PDF. No hay límite de longitud — el contenido fluirá automáticamente en las páginas que necesite."
+      ></textarea>
+    </div>
+
+    <div class="info-card">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>El PDF se adapta automáticamente al contenido — puede ser 1 página o 20, sin ningún límite.</span>
+    </div>
+
+    <button class="btn" id="download-btn" onclick="generatePDF()">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Descargar PDF
+    </button>
+
+    <footer class="footer">
+      Desarrollado por <a href="mailto:portaldigitalofficiall@gmail.com">portaldigitalofficiall@gmail.com</a>
+    </footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const contentEl     = document.getElementById('content');
+  const statsEl       = document.getElementById('stats');
+  const projectNameEl = document.getElementById('project-name');
+
+  contentEl.addEventListener('input', function () {
+    const text  = this.value;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    statsEl.textContent = words + ' palabras · ' + text.length + ' caracteres';
+  });
+
+  function showToast(msg, duration) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), duration || 2800);
+  }
+
+  function escape(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br/>');
+  }
+
+  function generatePDF() {
+    const name    = projectNameEl.value.trim() || 'Documento sin título';
+    const content = contentEl.value.trim();
+
+    if (!content) {
+      showToast('⚠️ Por favor escribe o pega contenido antes de generar el PDF.');
+      return;
+    }
+
+    const btn = document.getElementById('download-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span>Generando...</span>';
+
+    const date = new Date().toLocaleDateString('es-ES', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>${escape(name)}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 13pt;
+    line-height: 1.75;
+    color: #1a1a2e;
+    background: #fff;
+    padding: 60px 72px;
+  }
+  h1.doc-title {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 22pt;
+    font-weight: 700;
+    color: #1A2744;
+    margin-bottom: 6px;
+    letter-spacing: -0.3px;
+  }
+  .subtitle {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9pt;
+    color: #64748B;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .divider {
+    width: 100%;
+    height: 2px;
+    background: #4A7CF7;
+    margin-bottom: 36px;
+    opacity: 0.3;
+  }
+  .content {
+    font-size: 13pt;
+    line-height: 1.8;
+    color: #1a1a2e;
+    word-break: break-word;
+  }
+</style>
+</head>
+<body>
+  <h1 class="doc-title">${escape(name)}</h1>
+  <p class="subtitle">Generado el ${date}</p>
+  <div class="divider"></div>
+  <div class="content">${escape(content)}</div>
+</body>
+</html>`;
+
+    const printWin = window.open('', '_blank', 'width=900,height=700');
+
+    if (!printWin) {
+      showToast('⚠️ El navegador bloqueó la ventana emergente. Permite las ventanas emergentes e intenta de nuevo.');
+      btn.disabled = false;
+      btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Descargar PDF';
+      return;
+    }
+
+    printWin.document.open();
+    printWin.document.write(html);
+    printWin.document.close();
+
+    printWin.onload = function () {
+      printWin.focus();
+      printWin.print();
+      printWin.onafterprint = function () { printWin.close(); };
+      btn.disabled = false;
+      btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Descargar PDF';
+      showToast('✓ PDF listo — elige "Guardar como PDF" en el diálogo');
+    };
+  }
+</script>
+
+</body>
+</html>
